@@ -46,6 +46,12 @@ interface Messages {
   summarized: (text: string) => string;
   summarizeAccepted: string;
   summarizeRetrying: string;
+  // Reply keyboard buttons
+  kbGrammar: string;
+  kbNumber: string;
+  kbTranslate: string;
+  kbSummarize: string;
+  kbLanguage: string;
 }
 
 const en: Messages = {
@@ -89,6 +95,11 @@ const en: Messages = {
   summarized: (text) => `✂️ Summary:\n\n${text}`,
   summarizeAccepted: "✅ Summary accepted. Send another text or use /help.",
   summarizeRetrying: "🔄 Generating a different summary...",
+  kbGrammar: "📝 Grammar",
+  kbNumber: "🔢 Number",
+  kbTranslate: "🌍 Translate",
+  kbSummarize: "📋 Summarize",
+  kbLanguage: "🌐 Language",
 };
 
 const ru: Messages = {
@@ -134,6 +145,11 @@ const ru: Messages = {
   summarizeAccepted:
     "✅ Изложение принято. Пришлите следующий текст или воспользуйтесь /help.",
   summarizeRetrying: "🔄 Генерирую другой вариант краткого изложения...",
+  kbGrammar: "📝 Грамматика",
+  kbNumber: "🔢 Нумерация",
+  kbTranslate: "🌍 Перевод",
+  kbSummarize: "📋 Резюме",
+  kbLanguage: "🌐 Язык",
 };
 
 const uz: Messages = {
@@ -180,6 +196,11 @@ const uz: Messages = {
   summarizeAccepted:
     "✅ Xulosa qabul qilindi. Keyingi matnni yuboring yoki /help dan foydalaning.",
   summarizeRetrying: "🔄 Boshqacha xulosa tayyorlanmoqda...",
+  kbGrammar: "📝 Grammatika",
+  kbNumber: "🔢 Raqamlash",
+  kbTranslate: "🌍 Tarjima",
+  kbSummarize: "📋 Qisqartirish",
+  kbLanguage: "🌐 Til",
 };
 
 const translations: Record<UILang, Messages> = { en, ru, uz };

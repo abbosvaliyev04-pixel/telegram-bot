@@ -33,6 +33,19 @@ function setState(chatId: number, state: UserState): void {
 
 // ── Keyboards ─────────────────────────────────────────────────────────────────
 
+function buildMainKeyboard(uiLang: UILang): TelegramBot.ReplyKeyboardMarkup {
+  const s = t(uiLang);
+  return {
+    keyboard: [
+      [{ text: s.kbGrammar }, { text: s.kbNumber }],
+      [{ text: s.kbTranslate }, { text: s.kbSummarize }],
+      [{ text: s.kbLanguage }],
+    ],
+    resize_keyboard: true,
+    is_persistent: true,
+  };
+}
+
 function buildUILangKeyboard(): TelegramBot.InlineKeyboardMarkup {
   return {
     inline_keyboard: [
@@ -101,14 +114,29 @@ function buildAcceptRetryKeyboard(
   };
 }
 
+// Build a lookup: any button label (in any language) → action
+function buildButtonMap(): Map<string, "grammar" | "numbering" | "translate" | "summarize" | "language"> {
+  const map = new Map<string, "grammar" | "numbering" | "translate" | "summarize" | "language">();
+  for (const lang of ["en", "ru", "uz"] as UILang[]) {
+    const s = t(lang);
+    map.set(s.kbGrammar, "grammar");
+    map.set(s.kbNumber, "numbering");
+    map.set(s.kbTranslate, "translate");
+    map.set(s.kbSummarize, "summarize");
+    map.set(s.kbLanguage, "language");
+  }
+  return map;
+}
+
 // ── Bot ───────────────────────────────────────────────────────────────────────
 
 export function startBot(token: string): void {
   const bot = new TelegramBot(token, { polling: true });
+  const buttonMap = buildButtonMap();
 
   logger.info("Telegram bot started");
 
-  // /start
+  // /start — show language picker (no main keyboard yet; shown after language chosen)
   bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     const prev = getState(chatId);
@@ -135,7 +163,9 @@ export function startBot(token: string): void {
     const chatId = msg.chat.id;
     const state = getState(chatId);
     setState(chatId, { ...state, mode: null });
-    await bot.sendMessage(chatId, t(state.uiLang).help);
+    await bot.sendMessage(chatId, t(state.uiLang).help, {
+      reply_markup: buildMainKeyboard(state.uiLang),
+    });
   });
 
   // /number
@@ -143,7 +173,10 @@ export function startBot(token: string): void {
     const chatId = msg.chat.id;
     const state = getState(chatId);
     setState(chatId, { ...state, mode: "numbering" });
-    await bot.sendMessage(chatId, t(state.uiLang).numberActivated, { parse_mode: "Markdown" });
+    await bot.sendMessage(chatId, t(state.uiLang).numberActivated, {
+      parse_mode: "Markdown",
+      reply_markup: buildMainKeyboard(state.uiLang),
+    });
   });
 
   // /grammar
@@ -151,17 +184,17 @@ export function startBot(token: string): void {
     const chatId = msg.chat.id;
     const state = getState(chatId);
     setState(chatId, { ...state, mode: "grammar" });
-    await bot.sendMessage(chatId, t(state.uiLang).grammarActivated, { parse_mode: "Markdown" });
+    await bot.sendMessage(chatId, t(state.uiLang).grammarActivated, {
+      parse_mode: "Markdown",
+      reply_markup: buildMainKeyboard(state.uiLang),
+    });
   });
 
   // /translate
   bot.onText(/\/translate/, async (msg) => {
     const chatId = msg.chat.id;
     const state = getState(chatId);
-    setState(chatId, {
-      uiLang: state.uiLang,
-      mode: "translate",
-    });
+    setState(chatId, { uiLang: state.uiLang, mode: "translate" });
     await bot.sendMessage(chatId, t(state.uiLang).translateActivated, {
       parse_mode: "Markdown",
       reply_markup: buildTranslateLangKeyboard(),
@@ -197,6 +230,10 @@ export function startBot(token: string): void {
       await bot.editMessageText(t(newLang).languageSet(langLabel), {
         chat_id: chatId,
         message_id: query.message?.message_id,
+      });
+      // Show the persistent keyboard after language is chosen
+      await bot.sendMessage(chatId, t(newLang).help, {
+        reply_markup: buildMainKeyboard(newLang),
       });
       return;
     }
@@ -262,7 +299,9 @@ export function startBot(token: string): void {
       setState(chatId, { ...state, pendingText: undefined, attempt: undefined });
       await bot.answerCallbackQuery(query.id);
       await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message?.message_id });
-      await bot.sendMessage(chatId, strings.translationAccepted);
+      await bot.sendMessage(chatId, strings.translationAccepted, {
+        reply_markup: buildMainKeyboard(state.uiLang),
+      });
       return;
     }
 
@@ -294,7 +333,9 @@ export function startBot(token: string): void {
       setState(chatId, { ...state, pendingText: undefined, attempt: undefined });
       await bot.answerCallbackQuery(query.id);
       await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message?.message_id });
-      await bot.sendMessage(chatId, strings.summarizeAccepted);
+      await bot.sendMessage(chatId, strings.summarizeAccepted, {
+        reply_markup: buildMainKeyboard(state.uiLang),
+      });
       return;
     }
 
@@ -334,21 +375,74 @@ export function startBot(token: string): void {
     const state = getState(chatId);
     const strings = t(state.uiLang);
 
+    // Check if the message is a keyboard button tap
+    const buttonAction = buttonMap.get(text);
+    if (buttonAction) {
+      if (buttonAction === "language") {
+        setState(chatId, { ...state, mode: null });
+        await bot.sendMessage(chatId, "🌐 Choose your interface language:", {
+          reply_markup: buildUILangKeyboard(),
+        });
+        return;
+      }
+      if (buttonAction === "grammar") {
+        setState(chatId, { ...state, mode: "grammar" });
+        await bot.sendMessage(chatId, strings.grammarActivated, {
+          parse_mode: "Markdown",
+          reply_markup: buildMainKeyboard(state.uiLang),
+        });
+        return;
+      }
+      if (buttonAction === "numbering") {
+        setState(chatId, { ...state, mode: "numbering" });
+        await bot.sendMessage(chatId, strings.numberActivated, {
+          parse_mode: "Markdown",
+          reply_markup: buildMainKeyboard(state.uiLang),
+        });
+        return;
+      }
+      if (buttonAction === "translate") {
+        setState(chatId, { uiLang: state.uiLang, mode: "translate" });
+        await bot.sendMessage(chatId, strings.translateActivated, {
+          parse_mode: "Markdown",
+          reply_markup: buildTranslateLangKeyboard(),
+        });
+        return;
+      }
+      if (buttonAction === "summarize") {
+        setState(chatId, { uiLang: state.uiLang, mode: "summarize" });
+        await bot.sendMessage(chatId, strings.summarizeActivated, {
+          parse_mode: "Markdown",
+          reply_markup: buildSummarizeStyleKeyboard(state.uiLang),
+        });
+        return;
+      }
+    }
+
+    // No mode selected
     if (!state.mode) {
-      await bot.sendMessage(chatId, strings.chooseMode);
+      await bot.sendMessage(chatId, strings.chooseMode, {
+        reply_markup: buildMainKeyboard(state.uiLang),
+      });
       return;
     }
 
     try {
       // Numbering
       if (state.mode === "numbering") {
-        await bot.sendMessage(chatId, numberList(text));
+        await bot.sendMessage(chatId, numberList(text), {
+          reply_markup: buildMainKeyboard(state.uiLang),
+        });
 
       // Grammar
       } else if (state.mode === "grammar") {
         await bot.sendChatAction(chatId, "typing");
         const corrected = await checkGrammar(text);
-        await bot.sendMessage(chatId, corrected === text ? strings.noErrors : strings.corrected(corrected));
+        await bot.sendMessage(
+          chatId,
+          corrected === text ? strings.noErrors : strings.corrected(corrected),
+          { reply_markup: buildMainKeyboard(state.uiLang) }
+        );
 
       // Translate
       } else if (state.mode === "translate") {
@@ -383,7 +477,9 @@ export function startBot(token: string): void {
       }
     } catch (err) {
       logger.error({ err }, "Error handling message");
-      await bot.sendMessage(chatId, strings.error);
+      await bot.sendMessage(chatId, strings.error, {
+        reply_markup: buildMainKeyboard(state.uiLang),
+      });
     }
   });
 
