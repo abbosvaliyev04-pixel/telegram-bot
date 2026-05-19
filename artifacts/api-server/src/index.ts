@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startBot } from "./bot/index";
 
 const rawPort = process.env["PORT"];
 
@@ -23,3 +24,10 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 });
+
+const telegramToken = process.env["TELEGRAM_BOT_TOKEN"];
+if (!telegramToken) {
+  logger.warn("TELEGRAM_BOT_TOKEN not set — Telegram bot will not start");
+} else {
+  startBot(telegramToken);
+}
