@@ -1,22 +1,48 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
 
+export type TranslationContext = "formal" | "casual" | "medical" | "business";
+
 export async function translateText(
   text: string,
-  targetLanguage: string
+  targetLanguage: string,
+  context: TranslationContext | string,
+  attempt: number = 1
 ): Promise<string> {
+  const contextGuidance: Record<string, string> = {
+    formal: "The text is formal — use polished, professional language appropriate for official documents, letters, or announcements.",
+    casual: "The text is casual and conversational — use natural, relaxed language as if speaking to a friend. Use contractions and colloquialisms where appropriate.",
+    medical: "The text is medical — preserve all clinical terminology accurately. Use the standard medical vocabulary of the target language.",
+    business: "The text is business-oriented — use clear, professional business language appropriate for emails, reports, or presentations.",
+  };
+
+  const ctxNote = contextGuidance[context] ?? `The context is: ${context}.`;
+
+  const retryNote =
+    attempt > 1
+      ? `This is attempt #${attempt}. The user was not satisfied with the previous translation — produce a noticeably different, alternative rendition using varied vocabulary and sentence structure while remaining faithful to the meaning.`
+      : "";
+
   const response = await openai.chat.completions.create({
     model: "gpt-5-mini",
     max_completion_tokens: 2048,
     messages: [
       {
         role: "system",
-        content: `You are a professional translator. The user will send you text in any language.
-Translate it into ${targetLanguage}.
+        content: `You are an expert literary and professional translator.
 
-Rules:
-- Return ONLY the translated text, nothing else. No explanations, no labels, no "Translation:" prefix.
-- Preserve the original formatting (line breaks, paragraphs, punctuation style).
-- Keep proper nouns and brand names as-is unless they have a well-known translation.`,
+Translate the following text into ${targetLanguage}.
+
+${ctxNote}
+${retryNote}
+
+Translation principles — follow these strictly:
+- Translate naturally and fluently, as a native speaker of ${targetLanguage} would write it.
+- Preserve the tone, voice, and style of the original (formal stays formal, playful stays playful, etc.).
+- Avoid word-for-word translation. Restructure sentences if needed for natural flow.
+- Use idiomatic expressions, collocations, and phrasings native to ${targetLanguage}.
+- Preserve the original formatting (line breaks, paragraphs, lists, punctuation style).
+- Keep proper nouns and brand names as-is unless they have a universally recognized translation.
+- Return ONLY the translated text. No explanations, no labels, no "Translation:" prefix.`,
       },
       {
         role: "user",

@@ -15,6 +15,16 @@ interface Messages {
   translateActivated: string;
   chooseTargetLanguage: string;
   translateModeWithLang: (lang: string) => string;
+  askContext: string;
+  contextFormal: string;
+  contextCasual: string;
+  contextMedical: string;
+  contextBusiness: string;
+  contextSet: (ctx: string) => string;
+  btnAccept: string;
+  btnRetry: string;
+  translationAccepted: string;
+  retrying: string;
   noErrors: string;
   corrected: (text: string) => string;
   translated: (lang: string, text: string) => string;
@@ -32,7 +42,17 @@ const en: Messages = {
   grammarActivated: "✏️ *Grammar check mode* activated.\n\nSend me any text and I'll fix the grammar and spelling.",
   translateActivated: "🌐 *Translate mode* activated.\n\nChoose the target language:",
   chooseTargetLanguage: "Please pick a target language first:",
-  translateModeWithLang: (lang) => `🌐 *Translate mode* — target: *${lang}*\n\nNow send me the text you want to translate.`,
+  translateModeWithLang: (lang) => `🌐 Target language: *${lang}*\n\nWhat's the style of this text? This helps me translate more naturally.`,
+  askContext: "What's the style of this text?",
+  contextFormal: "🏢 Formal",
+  contextCasual: "💬 Casual",
+  contextMedical: "🏥 Medical",
+  contextBusiness: "💼 Business",
+  contextSet: (ctx) => `Got it — *${ctx}* style.\n\nNow send me the text to translate.`,
+  btnAccept: "✅ Accept",
+  btnRetry: "🔄 Try again",
+  translationAccepted: "✅ Translation accepted. Send another text or use /help.",
+  retrying: "🔄 Retranslating with different wording...",
   noErrors: "✅ No errors found! Your text looks great.",
   corrected: (text) => `✅ Corrected:\n\n${text}`,
   translated: (lang, text) => `${lang}:\n\n${text}`,
@@ -50,7 +70,17 @@ const ru: Messages = {
   grammarActivated: "✏️ *Режим проверки грамматики* активирован.\n\nПришлите любой текст, и я исправлю грамматику и орфографию.",
   translateActivated: "🌐 *Режим перевода* активирован.\n\nВыберите язык перевода:",
   chooseTargetLanguage: "Сначала выберите язык перевода:",
-  translateModeWithLang: (lang) => `🌐 *Режим перевода* — язык: *${lang}*\n\nТеперь пришлите текст для перевода.`,
+  translateModeWithLang: (lang) => `🌐 Язык перевода: *${lang}*\n\nКакой стиль у этого текста? Это поможет мне перевести точнее.`,
+  askContext: "Какой стиль у этого текста?",
+  contextFormal: "🏢 Официальный",
+  contextCasual: "💬 Разговорный",
+  contextMedical: "🏥 Медицинский",
+  contextBusiness: "💼 Деловой",
+  contextSet: (ctx) => `Понял — стиль *${ctx}*.\n\nТеперь пришлите текст для перевода.`,
+  btnAccept: "✅ Принять",
+  btnRetry: "🔄 Попробовать снова",
+  translationAccepted: "✅ Перевод принят. Пришлите следующий текст или воспользуйтесь /help.",
+  retrying: "🔄 Переводю заново с другими формулировками...",
   noErrors: "✅ Ошибок не найдено! Ваш текст выглядит отлично.",
   corrected: (text) => `✅ Исправлено:\n\n${text}`,
   translated: (lang, text) => `${lang}:\n\n${text}`,
@@ -68,7 +98,17 @@ const uz: Messages = {
   grammarActivated: "✏️ *Grammatika tekshiruvi rejimi* faollashtirildi.\n\nIstalgan matn yuboring, men grammatika va imlo xatolarini tuzataman.",
   translateActivated: "🌐 *Tarjima rejimi* faollashtirildi.\n\nTarjima tilini tanlang:",
   chooseTargetLanguage: "Avval tarjima tilini tanlang:",
-  translateModeWithLang: (lang) => `🌐 *Tarjima rejimi* — til: *${lang}*\n\nEndi tarjima qilmoqchi bo'lgan matnni yuboring.`,
+  translateModeWithLang: (lang) => `🌐 Tarjima tili: *${lang}*\n\nMatnning uslubi qanday? Bu menga aniqroq tarjima qilishga yordam beradi.`,
+  askContext: "Matnning uslubi qanday?",
+  contextFormal: "🏢 Rasmiy",
+  contextCasual: "💬 Oddiy",
+  contextMedical: "🏥 Tibbiy",
+  contextBusiness: "💼 Biznes",
+  contextSet: (ctx) => `Tushundim — *${ctx}* uslubi.\n\nEndi tarjima qilmoqchi bo'lgan matnni yuboring.`,
+  btnAccept: "✅ Qabul qilish",
+  btnRetry: "🔄 Qayta urinish",
+  translationAccepted: "✅ Tarjima qabul qilindi. Keyingi matnni yuboring yoki /help dan foydalaning.",
+  retrying: "🔄 Boshqacha so'zlar bilan qayta tarjima qilinmoqda...",
   noErrors: "✅ Xato topilmadi! Matningiz zo'r ko'rinadi.",
   corrected: (text) => `✅ Tuzatildi:\n\n${text}`,
   translated: (lang, text) => `${lang}:\n\n${text}`,
