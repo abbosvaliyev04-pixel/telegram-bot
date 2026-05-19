@@ -227,12 +227,11 @@ export function startBot(token: string): void {
       setState(chatId, { ...state, uiLang: newLang, mode: null });
       const langLabel = UI_LANGUAGES.find((l) => l.code === newLang)?.label ?? newLang;
       await bot.answerCallbackQuery(query.id, { text: t(newLang).langSelected(langLabel) });
-      await bot.editMessageText(t(newLang).languageSet(langLabel), {
+      await bot.editMessageText(`✅ ${langLabel}`, {
         chat_id: chatId,
         message_id: query.message?.message_id,
       });
-      // Show the persistent keyboard after language is chosen
-      await bot.sendMessage(chatId, t(newLang).help, {
+      await bot.sendMessage(chatId, t(newLang).languageSet(langLabel), {
         reply_markup: buildMainKeyboard(newLang),
       });
       return;
