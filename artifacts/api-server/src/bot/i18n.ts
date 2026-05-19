@@ -60,7 +60,7 @@ const en: Messages = {
   btnAccept: "✅ Accept",
   btnRetry: "🔄 Try again",
   numberActivated:
-    "📋 *Numbering mode* activated.\n\nSend me a list of items (one per line) and I'll number them.",
+    "📋 *Numbering mode* activated.\n\nSend me a list of items and I will number each one in order: 1, 2, 3...",
   grammarActivated:
     "✏️ *Grammar check mode* activated.\n\nSend me any text and I'll fix the grammar and spelling.",
   noErrors: "✅ No errors found! Your text looks great.",
@@ -103,7 +103,7 @@ const ru: Messages = {
   btnAccept: "✅ Принять",
   btnRetry: "🔄 Попробовать снова",
   numberActivated:
-    "📋 *Режим нумерации* активирован.\n\nПришлите список элементов (каждый с новой строки), и я пронумерую их.",
+    "📋 *Режим нумерации* активирован.\n\nОтправьте список, и я пронумерую каждый пункт по порядку: 1, 2, 3...",
   grammarActivated:
     "✏️ *Режим проверки грамматики* активирован.\n\nПришлите любой текст, и я исправлю грамматику и орфографию.",
   noErrors: "✅ Ошибок не найдено! Ваш текст выглядит отлично.",
@@ -148,7 +148,7 @@ const uz: Messages = {
   btnAccept: "✅ Qabul qilish",
   btnRetry: "🔄 Qayta urinish",
   numberActivated:
-    "📋 *Raqamlash rejimi* faollashtirildi.\n\nMenga ro'yxat elementlarini yuboring (har biri yangi qatorda) va men ularni raqamlayman.",
+    "📋 *Raqamlash rejimi* faollashtirildi.\n\nNarsalar ro'yxatini yuboring, men har biriga 1, 2, 3... tartibida raqam qo'yib beraman.",
   grammarActivated:
     "✏️ *Grammatika tekshiruvi rejimi* faollashtirildi.\n\nIstalgan matn yuboring, men grammatika va imlo xatolarini tuzataman.",
   noErrors: "✅ Xato topilmadi! Matningiz zo'r ko'rinadi.",
