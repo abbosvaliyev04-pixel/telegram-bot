@@ -3,36 +3,38 @@ import { logger } from "../lib/logger";
 import { numberList } from "./numbering";
 import { checkGrammar } from "./grammar";
 import { translateText, LANGUAGE_OPTIONS } from "./translate";
+import { type UILang, UI_LANGUAGES, t } from "./i18n";
 
 type BotMode = "numbering" | "grammar" | "translate" | null;
 
 interface UserState {
+  uiLang: UILang;
   mode: BotMode;
   targetLanguage?: string;
 }
 
 const userStates = new Map<number, UserState>();
 
-const HELP_TEXT = `👋 Hello! Here's what I can do:
-
-/number — Send a list of items and I'll number them 1 to N
-/grammar — Send any text and I'll fix the grammar & spelling (English, German, Russian, Uzbek, and more)
-/translate — Translate text into a language of your choice
-/help — Show this message`;
-
 function getState(chatId: number): UserState {
-  return userStates.get(chatId) ?? { mode: null };
+  return userStates.get(chatId) ?? { uiLang: "en", mode: null };
 }
 
 function setState(chatId: number, state: UserState): void {
   userStates.set(chatId, state);
 }
 
-function clearState(chatId: number): void {
-  userStates.delete(chatId);
+function buildUILangKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      UI_LANGUAGES.map((l) => ({
+        text: l.label,
+        callback_data: `ui_lang:${l.code}`,
+      })),
+    ],
+  };
 }
 
-function buildLanguageKeyboard(): TelegramBot.InlineKeyboardMarkup {
+function buildTranslateLangKeyboard(): TelegramBot.InlineKeyboardMarkup {
   const rows: TelegramBot.InlineKeyboardButton[][] = [];
   for (let i = 0; i < LANGUAGE_OPTIONS.length; i += 2) {
     const row: TelegramBot.InlineKeyboardButton[] = [];
@@ -58,79 +60,115 @@ export function startBot(token: string): void {
 
   bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
-    clearState(chatId);
-    await bot.sendMessage(chatId, HELP_TEXT);
+    const prev = getState(chatId);
+    setState(chatId, { ...prev, mode: null });
+    await bot.sendMessage(
+      chatId,
+      "👋 Welcome! / Добро пожаловать! / Xush kelibsiz!\n\nChoose your language:",
+      { reply_markup: buildUILangKeyboard() }
+    );
+  });
+
+  bot.onText(/\/language/, async (msg) => {
+    const chatId = msg.chat.id;
+    const prev = getState(chatId);
+    setState(chatId, { ...prev, mode: null });
+    await bot.sendMessage(
+      chatId,
+      "🌐 Choose your interface language:",
+      { reply_markup: buildUILangKeyboard() }
+    );
   });
 
   bot.onText(/\/help/, async (msg) => {
     const chatId = msg.chat.id;
-    clearState(chatId);
-    await bot.sendMessage(chatId, HELP_TEXT);
+    const state = getState(chatId);
+    setState(chatId, { ...state, mode: null });
+    await bot.sendMessage(chatId, t(state.uiLang).help);
   });
 
   bot.onText(/\/number/, async (msg) => {
     const chatId = msg.chat.id;
-    setState(chatId, { mode: "numbering" });
-    await bot.sendMessage(
-      chatId,
-      "📋 *Numbering mode* activated.\n\nSend me a list of items (one per line) and I'll number them.",
-      { parse_mode: "Markdown" }
-    );
+    const state = getState(chatId);
+    setState(chatId, { ...state, mode: "numbering" });
+    await bot.sendMessage(chatId, t(state.uiLang).numberActivated, {
+      parse_mode: "Markdown",
+    });
   });
 
   bot.onText(/\/grammar/, async (msg) => {
     const chatId = msg.chat.id;
-    setState(chatId, { mode: "grammar" });
-    await bot.sendMessage(
-      chatId,
-      "✏️ *Grammar check mode* activated.\n\nSend me any text in English, German, Russian, Uzbek, or another language and I'll fix the grammar and spelling.",
-      { parse_mode: "Markdown" }
-    );
+    const state = getState(chatId);
+    setState(chatId, { ...state, mode: "grammar" });
+    await bot.sendMessage(chatId, t(state.uiLang).grammarActivated, {
+      parse_mode: "Markdown",
+    });
   });
 
   bot.onText(/\/translate/, async (msg) => {
     const chatId = msg.chat.id;
-    setState(chatId, { mode: "translate" });
-    await bot.sendMessage(
-      chatId,
-      "🌐 *Translate mode* activated.\n\nChoose the target language:",
-      {
-        parse_mode: "Markdown",
-        reply_markup: buildLanguageKeyboard(),
-      }
-    );
+    const state = getState(chatId);
+    setState(chatId, { ...state, mode: "translate", targetLanguage: undefined });
+    await bot.sendMessage(chatId, t(state.uiLang).translateActivated, {
+      parse_mode: "Markdown",
+      reply_markup: buildTranslateLangKeyboard(),
+    });
   });
 
   bot.on("callback_query", async (query) => {
     const chatId = query.message?.chat.id;
-    if (!chatId || !query.data?.startsWith("lang:")) return;
+    if (!chatId || !query.data) return;
 
-    const targetLanguage = query.data.slice(5);
     const state = getState(chatId);
 
-    if (state.mode !== "translate") {
-      await bot.answerCallbackQuery(query.id);
+    if (query.data.startsWith("ui_lang:")) {
+      const newLang = query.data.slice(8) as UILang;
+      setState(chatId, { ...state, uiLang: newLang, mode: null });
+
+      const langLabel =
+        UI_LANGUAGES.find((l) => l.code === newLang)?.label ?? newLang;
+
+      await bot.answerCallbackQuery(query.id, {
+        text: t(newLang).langSelected(langLabel),
+      });
+
+      await bot.editMessageText(t(newLang).languageSet(langLabel), {
+        chat_id: chatId,
+        message_id: query.message?.message_id,
+      });
       return;
     }
 
-    setState(chatId, { mode: "translate", targetLanguage });
+    if (query.data.startsWith("lang:")) {
+      const targetLanguage = query.data.slice(5);
 
-    const langLabel =
-      LANGUAGE_OPTIONS.find((l) => l.code === targetLanguage)?.label ??
-      targetLanguage;
-
-    await bot.answerCallbackQuery(query.id, {
-      text: `${langLabel} selected`,
-    });
-
-    await bot.editMessageText(
-      `🌐 *Translate mode* — target: *${langLabel}*\n\nNow send me the text you want to translate.`,
-      {
-        chat_id: chatId,
-        message_id: query.message?.message_id,
-        parse_mode: "Markdown",
+      if (state.mode !== "translate") {
+        await bot.answerCallbackQuery(query.id);
+        return;
       }
-    );
+
+      setState(chatId, { ...state, targetLanguage });
+
+      const langLabel =
+        LANGUAGE_OPTIONS.find((l) => l.code === targetLanguage)?.label ??
+        targetLanguage;
+
+      await bot.answerCallbackQuery(query.id, {
+        text: t(state.uiLang).langSelected(langLabel),
+      });
+
+      await bot.editMessageText(
+        t(state.uiLang).translateModeWithLang(langLabel),
+        {
+          chat_id: chatId,
+          message_id: query.message?.message_id,
+          parse_mode: "Markdown",
+        }
+      );
+      return;
+    }
+
+    await bot.answerCallbackQuery(query.id);
   });
 
   bot.on("message", async (msg) => {
@@ -140,12 +178,10 @@ export function startBot(token: string): void {
     if (!text || text.startsWith("/")) return;
 
     const state = getState(chatId);
+    const strings = t(state.uiLang);
 
     if (!state.mode) {
-      await bot.sendMessage(
-        chatId,
-        "Please choose a mode first:\n/number — number a list\n/grammar — fix grammar & spelling\n/translate — translate text"
-      );
+      await bot.sendMessage(chatId, strings.chooseMode);
       return;
     }
 
@@ -157,17 +193,15 @@ export function startBot(token: string): void {
         await bot.sendChatAction(chatId, "typing");
         const corrected = await checkGrammar(text);
         if (corrected === text) {
-          await bot.sendMessage(chatId, "✅ No errors found! Your text looks great.");
+          await bot.sendMessage(chatId, strings.noErrors);
         } else {
-          await bot.sendMessage(chatId, `✅ Corrected:\n\n${corrected}`);
+          await bot.sendMessage(chatId, strings.corrected(corrected));
         }
       } else if (state.mode === "translate") {
         if (!state.targetLanguage) {
-          await bot.sendMessage(
-            chatId,
-            "Please pick a target language first:",
-            { reply_markup: buildLanguageKeyboard() }
-          );
+          await bot.sendMessage(chatId, strings.pickTargetLanguage, {
+            reply_markup: buildTranslateLangKeyboard(),
+          });
           return;
         }
         await bot.sendChatAction(chatId, "typing");
@@ -175,11 +209,11 @@ export function startBot(token: string): void {
         const langLabel =
           LANGUAGE_OPTIONS.find((l) => l.code === state.targetLanguage)
             ?.label ?? state.targetLanguage;
-        await bot.sendMessage(chatId, `${langLabel}:\n\n${translated}`);
+        await bot.sendMessage(chatId, strings.translated(langLabel, translated));
       }
     } catch (err) {
       logger.error({ err }, "Error handling message");
-      await bot.sendMessage(chatId, "Something went wrong. Please try again.");
+      await bot.sendMessage(chatId, strings.error);
     }
   });
 
