@@ -51,10 +51,10 @@ interface Messages {
 const en: Messages = {
   chooseLanguage: "👋 Welcome! Please choose your language:",
   languageSet: (lang) =>
-    `✅ Language set to ${lang}. Here's what I can do:\n\n/number — Number a list of items\n/grammar — Fix grammar & spelling\n/translate — Translate text to any language\n/summarize — Shorten & summarize text\n/language — Change interface language\n/help — Show this message`,
-  help: "👋 Here's what I can do:\n\n/number — Number a list of items\n/grammar — Fix grammar & spelling\n/translate — Translate text to any language\n/summarize — Shorten & summarize text\n/language — Change interface language\n/help — Show this message",
+    `✅ Language set to ${lang}. Here's what I can do:\n\n/number — Send me a list of items and I will number each one in order: 1, 2, 3...\n/grammar — Fix grammar & spelling\n/translate — Translate text to any language\n/summarize — Shorten & summarize text\n/language — Change interface language\n/help — Show this message`,
+  help: "👋 Here's what I can do:\n\n/number — Send me a list of items and I will number each one in order: 1, 2, 3...\n/grammar — Fix grammar & spelling\n/translate — Translate text to any language\n/summarize — Shorten & summarize text\n/language — Change interface language\n/help — Show this message",
   chooseMode:
-    "Please choose a mode first:\n/number — number a list\n/grammar — fix grammar & spelling\n/translate — translate text\n/summarize — shorten text",
+    "Please choose a mode first:\n/number — number each item in order: 1, 2, 3...\n/grammar — fix grammar & spelling\n/translate — translate text\n/summarize — shorten text",
   error: "Something went wrong. Please try again.",
   langSelected: (lang) => `${lang} selected`,
   btnAccept: "✅ Accept",
@@ -94,10 +94,10 @@ const en: Messages = {
 const ru: Messages = {
   chooseLanguage: "👋 Добро пожаловать! Выберите язык интерфейса:",
   languageSet: (lang) =>
-    `✅ Язык установлен: ${lang}. Вот что я умею:\n\n/number — Пронумеровать список\n/grammar — Исправить грамматику и орфографию\n/translate — Перевести текст на любой язык\n/summarize — Сократить и пересказать текст\n/language — Изменить язык интерфейса\n/help — Показать это сообщение`,
-  help: "👋 Вот что я умею:\n\n/number — Пронумеровать список\n/grammar — Исправить грамматику и орфографию\n/translate — Перевести текст на любой язык\n/summarize — Сократить и пересказать текст\n/language — Изменить язык интерфейса\n/help — Показать это сообщение",
+    `✅ Язык установлен: ${lang}. Вот что я умею:\n\n/number — Отправьте список, и я пронумерую каждый пункт по порядку: 1, 2, 3...\n/grammar — Исправить грамматику и орфографию\n/translate — Перевести текст на любой язык\n/summarize — Сократить и пересказать текст\n/language — Изменить язык интерфейса\n/help — Показать это сообщение`,
+  help: "👋 Вот что я умею:\n\n/number — Отправьте список, и я пронумерую каждый пункт по порядку: 1, 2, 3...\n/grammar — Исправить грамматику и орфографию\n/translate — Перевести текст на любой язык\n/summarize — Сократить и пересказать текст\n/language — Изменить язык интерфейса\n/help — Показать это сообщение",
   chooseMode:
-    "Сначала выберите режим:\n/number — нумерация списка\n/grammar — проверка грамматики\n/translate — перевод текста\n/summarize — сокращение текста",
+    "Сначала выберите режим:\n/number — пронумеровать каждый пункт: 1, 2, 3...\n/grammar — проверка грамматики\n/translate — перевод текста\n/summarize — сокращение текста",
   error: "Что-то пошло не так. Попробуйте ещё раз.",
   langSelected: (lang) => `${lang} выбран`,
   btnAccept: "✅ Принять",
@@ -139,10 +139,10 @@ const ru: Messages = {
 const uz: Messages = {
   chooseLanguage: "👋 Xush kelibsiz! Interfeys tilini tanlang:",
   languageSet: (lang) =>
-    `✅ Til tanlandi: ${lang}. Men nima qila olaman:\n\n/number — Ro'yxatni raqamlash\n/grammar — Grammatika va imlo xatolarini tuzatish\n/translate — Matnni istalgan tilga tarjima qilish\n/summarize — Matnni qisqartirish va xulosa chiqarish\n/language — Interfeys tilini o'zgartirish\n/help — Ushbu xabarni ko'rsatish`,
-  help: "👋 Men nima qila olaman:\n\n/number — Ro'yxatni raqamlash\n/grammar — Grammatika va imlo xatolarini tuzatish\n/translate — Matnni istalgan tilga tarjima qilish\n/summarize — Matnni qisqartirish va xulosa chiqarish\n/language — Interfeys tilini o'zgartirish\n/help — Ushbu xabarni ko'rsatish",
+    `✅ Til tanlandi: ${lang}. Men nima qila olaman:\n\n/number — Narsalar ro'yxatini yuboring, men har biriga 1, 2, 3... tartibida raqam qo'yib beraman\n/grammar — Grammatika va imlo xatolarini tuzatish\n/translate — Matnni istalgan tilga tarjima qilish\n/summarize — Matnni qisqartirish va xulosa chiqarish\n/language — Interfeys tilini o'zgartirish\n/help — Ushbu xabarni ko'rsatish`,
+  help: "👋 Men nima qila olaman:\n\n/number — Narsalar ro'yxatini yuboring, men har biriga 1, 2, 3... tartibida raqam qo'yib beraman\n/grammar — Grammatika va imlo xatolarini tuzatish\n/translate — Matnni istalgan tilga tarjima qilish\n/summarize — Matnni qisqartirish va xulosa chiqarish\n/language — Interfeys tilini o'zgartirish\n/help — Ushbu xabarni ko'rsatish",
   chooseMode:
-    "Avval rejimni tanlang:\n/number — ro'yxatni raqamlash\n/grammar — grammatikani tekshirish\n/translate — matnni tarjima qilish\n/summarize — matnni qisqartirish",
+    "Avval rejimni tanlang:\n/number — har biriga 1, 2, 3... raqam qo'yish\n/grammar — grammatikani tekshirish\n/translate — matnni tarjima qilish\n/summarize — matnni qisqartirish",
   error: "Nimadir xato ketdi. Qaytadan urinib ko'ring.",
   langSelected: (lang) => `${lang} tanlandi`,
   btnAccept: "✅ Qabul qilish",
