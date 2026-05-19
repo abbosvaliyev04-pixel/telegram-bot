@@ -3,17 +3,22 @@ import { logger } from "../lib/logger";
 import { numberList } from "./numbering";
 import { checkGrammar } from "./grammar";
 import { translateText, LANGUAGE_OPTIONS } from "./translate";
+import { summarizeText } from "./summarize";
 import { type UILang, UI_LANGUAGES, t } from "./i18n";
 
-type BotMode = "numbering" | "grammar" | "translate" | null;
+type BotMode = "numbering" | "grammar" | "translate" | "summarize" | null;
 
 interface UserState {
   uiLang: UILang;
   mode: BotMode;
+  // translate
   targetLanguage?: string;
   translationContext?: string;
+  // shared (translate + summarize)
   pendingText?: string;
-  translationAttempt?: number;
+  attempt?: number;
+  // summarize
+  summarizeStyle?: string;
 }
 
 const userStates = new Map<number, UserState>();
@@ -25,6 +30,8 @@ function getState(chatId: number): UserState {
 function setState(chatId: number, state: UserState): void {
   userStates.set(chatId, state);
 }
+
+// ── Keyboards ─────────────────────────────────────────────────────────────────
 
 function buildUILangKeyboard(): TelegramBot.InlineKeyboardMarkup {
   return {
@@ -41,22 +48,16 @@ function buildTranslateLangKeyboard(): TelegramBot.InlineKeyboardMarkup {
   const rows: TelegramBot.InlineKeyboardButton[][] = [];
   for (let i = 0; i < LANGUAGE_OPTIONS.length; i += 2) {
     const row: TelegramBot.InlineKeyboardButton[] = [];
-    row.push({
-      text: LANGUAGE_OPTIONS[i]!.label,
-      callback_data: `lang:${LANGUAGE_OPTIONS[i]!.code}`,
-    });
+    row.push({ text: LANGUAGE_OPTIONS[i]!.label, callback_data: `lang:${LANGUAGE_OPTIONS[i]!.code}` });
     if (LANGUAGE_OPTIONS[i + 1]) {
-      row.push({
-        text: LANGUAGE_OPTIONS[i + 1]!.label,
-        callback_data: `lang:${LANGUAGE_OPTIONS[i + 1]!.code}`,
-      });
+      row.push({ text: LANGUAGE_OPTIONS[i + 1]!.label, callback_data: `lang:${LANGUAGE_OPTIONS[i + 1]!.code}` });
     }
     rows.push(row);
   }
   return { inline_keyboard: rows };
 }
 
-function buildContextKeyboard(uiLang: UILang): TelegramBot.InlineKeyboardMarkup {
+function buildTranslateContextKeyboard(uiLang: UILang): TelegramBot.InlineKeyboardMarkup {
   const s = t(uiLang);
   return {
     inline_keyboard: [
@@ -72,23 +73,42 @@ function buildContextKeyboard(uiLang: UILang): TelegramBot.InlineKeyboardMarkup 
   };
 }
 
-function buildAcceptRetryKeyboard(uiLang: UILang): TelegramBot.InlineKeyboardMarkup {
+function buildSummarizeStyleKeyboard(uiLang: UILang): TelegramBot.InlineKeyboardMarkup {
   const s = t(uiLang);
   return {
     inline_keyboard: [
       [
-        { text: s.btnAccept, callback_data: "tr_accept" },
-        { text: s.btnRetry, callback_data: "tr_retry" },
+        { text: s.summarizeStyleFormal, callback_data: "sum_ctx:formal" },
+        { text: s.summarizeStyleCasual, callback_data: "sum_ctx:casual" },
       ],
     ],
   };
 }
+
+function buildAcceptRetryKeyboard(
+  uiLang: UILang,
+  acceptCb: string,
+  retryCb: string
+): TelegramBot.InlineKeyboardMarkup {
+  const s = t(uiLang);
+  return {
+    inline_keyboard: [
+      [
+        { text: s.btnAccept, callback_data: acceptCb },
+        { text: s.btnRetry, callback_data: retryCb },
+      ],
+    ],
+  };
+}
+
+// ── Bot ───────────────────────────────────────────────────────────────────────
 
 export function startBot(token: string): void {
   const bot = new TelegramBot(token, { polling: true });
 
   logger.info("Telegram bot started");
 
+  // /start
   bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     const prev = getState(chatId);
@@ -100,6 +120,7 @@ export function startBot(token: string): void {
     );
   });
 
+  // /language
   bot.onText(/\/language/, async (msg) => {
     const chatId = msg.chat.id;
     const prev = getState(chatId);
@@ -109,6 +130,7 @@ export function startBot(token: string): void {
     });
   });
 
+  // /help
   bot.onText(/\/help/, async (msg) => {
     const chatId = msg.chat.id;
     const state = getState(chatId);
@@ -116,40 +138,48 @@ export function startBot(token: string): void {
     await bot.sendMessage(chatId, t(state.uiLang).help);
   });
 
+  // /number
   bot.onText(/\/number/, async (msg) => {
     const chatId = msg.chat.id;
     const state = getState(chatId);
     setState(chatId, { ...state, mode: "numbering" });
-    await bot.sendMessage(chatId, t(state.uiLang).numberActivated, {
-      parse_mode: "Markdown",
-    });
+    await bot.sendMessage(chatId, t(state.uiLang).numberActivated, { parse_mode: "Markdown" });
   });
 
+  // /grammar
   bot.onText(/\/grammar/, async (msg) => {
     const chatId = msg.chat.id;
     const state = getState(chatId);
     setState(chatId, { ...state, mode: "grammar" });
-    await bot.sendMessage(chatId, t(state.uiLang).grammarActivated, {
-      parse_mode: "Markdown",
-    });
+    await bot.sendMessage(chatId, t(state.uiLang).grammarActivated, { parse_mode: "Markdown" });
   });
 
+  // /translate
   bot.onText(/\/translate/, async (msg) => {
     const chatId = msg.chat.id;
     const state = getState(chatId);
     setState(chatId, {
-      ...state,
+      uiLang: state.uiLang,
       mode: "translate",
-      targetLanguage: undefined,
-      translationContext: undefined,
-      pendingText: undefined,
-      translationAttempt: undefined,
     });
     await bot.sendMessage(chatId, t(state.uiLang).translateActivated, {
       parse_mode: "Markdown",
       reply_markup: buildTranslateLangKeyboard(),
     });
   });
+
+  // /summarize
+  bot.onText(/\/summarize/, async (msg) => {
+    const chatId = msg.chat.id;
+    const state = getState(chatId);
+    setState(chatId, { uiLang: state.uiLang, mode: "summarize" });
+    await bot.sendMessage(chatId, t(state.uiLang).summarizeActivated, {
+      parse_mode: "Markdown",
+      reply_markup: buildSummarizeStyleKeyboard(state.uiLang),
+    });
+  });
+
+  // ── Callback queries ─────────────────────────────────────────────────────────
 
   bot.on("callback_query", async (query) => {
     const chatId = query.message?.chat.id;
@@ -158,15 +188,12 @@ export function startBot(token: string): void {
     const state = getState(chatId);
     const strings = t(state.uiLang);
 
-    // ── UI language selection ────────────────────────────────────────────
+    // UI language selection
     if (query.data.startsWith("ui_lang:")) {
       const newLang = query.data.slice(8) as UILang;
       setState(chatId, { ...state, uiLang: newLang, mode: null });
-      const langLabel =
-        UI_LANGUAGES.find((l) => l.code === newLang)?.label ?? newLang;
-      await bot.answerCallbackQuery(query.id, {
-        text: t(newLang).langSelected(langLabel),
-      });
+      const langLabel = UI_LANGUAGES.find((l) => l.code === newLang)?.label ?? newLang;
+      await bot.answerCallbackQuery(query.id, { text: t(newLang).langSelected(langLabel) });
       await bot.editMessageText(t(newLang).languageSet(langLabel), {
         chat_id: chatId,
         message_id: query.message?.message_id,
@@ -174,42 +201,26 @@ export function startBot(token: string): void {
       return;
     }
 
-    // ── Target language selection ────────────────────────────────────────
+    // Target language selection (translate)
     if (query.data.startsWith("lang:")) {
+      if (state.mode !== "translate") { await bot.answerCallbackQuery(query.id); return; }
       const targetLanguage = query.data.slice(5);
-      if (state.mode !== "translate") {
-        await bot.answerCallbackQuery(query.id);
-        return;
-      }
-      setState(chatId, {
-        ...state,
-        targetLanguage,
-        translationContext: undefined,
-        pendingText: undefined,
-        translationAttempt: undefined,
-      });
-      const langLabel =
-        LANGUAGE_OPTIONS.find((l) => l.code === targetLanguage)?.label ??
-        targetLanguage;
-      await bot.answerCallbackQuery(query.id, {
-        text: strings.langSelected(langLabel),
-      });
+      setState(chatId, { ...state, targetLanguage, translationContext: undefined, pendingText: undefined, attempt: undefined });
+      const langLabel = LANGUAGE_OPTIONS.find((l) => l.code === targetLanguage)?.label ?? targetLanguage;
+      await bot.answerCallbackQuery(query.id, { text: strings.langSelected(langLabel) });
       await bot.editMessageText(strings.translateModeWithLang(langLabel), {
         chat_id: chatId,
         message_id: query.message?.message_id,
         parse_mode: "Markdown",
-        reply_markup: buildContextKeyboard(state.uiLang),
+        reply_markup: buildTranslateContextKeyboard(state.uiLang),
       });
       return;
     }
 
-    // ── Context selection ────────────────────────────────────────────────
+    // Translation context selection
     if (query.data.startsWith("ctx:")) {
+      if (state.mode !== "translate") { await bot.answerCallbackQuery(query.id); return; }
       const rawCtx = query.data.slice(4);
-      if (state.mode !== "translate") {
-        await bot.answerCallbackQuery(query.id);
-        return;
-      }
       const ctxLabelMap: Record<string, string> = {
         formal: strings.contextFormal,
         casual: strings.contextCasual,
@@ -217,12 +228,7 @@ export function startBot(token: string): void {
         business: strings.contextBusiness,
       };
       const ctxLabel = ctxLabelMap[rawCtx] ?? rawCtx;
-      setState(chatId, {
-        ...state,
-        translationContext: rawCtx,
-        pendingText: undefined,
-        translationAttempt: undefined,
-      });
+      setState(chatId, { ...state, translationContext: rawCtx, pendingText: undefined, attempt: undefined });
       await bot.answerCallbackQuery(query.id);
       await bot.editMessageText(strings.contextSet(ctxLabel), {
         chat_id: chatId,
@@ -232,53 +238,50 @@ export function startBot(token: string): void {
       return;
     }
 
-    // ── Accept translation ───────────────────────────────────────────────
-    if (query.data === "tr_accept") {
-      setState(chatId, {
-        ...state,
-        pendingText: undefined,
-        translationAttempt: undefined,
-      });
+    // Summarize style selection
+    if (query.data.startsWith("sum_ctx:")) {
+      if (state.mode !== "summarize") { await bot.answerCallbackQuery(query.id); return; }
+      const rawStyle = query.data.slice(8);
+      const styleLabelMap: Record<string, string> = {
+        formal: strings.summarizeStyleFormal,
+        casual: strings.summarizeStyleCasual,
+      };
+      const styleLabel = styleLabelMap[rawStyle] ?? rawStyle;
+      setState(chatId, { ...state, summarizeStyle: rawStyle, pendingText: undefined, attempt: undefined });
       await bot.answerCallbackQuery(query.id);
-      await bot.editMessageReplyMarkup(
-        { inline_keyboard: [] },
-        { chat_id: chatId, message_id: query.message?.message_id }
-      );
+      await bot.editMessageText(strings.summarizeStyleSet(styleLabel), {
+        chat_id: chatId,
+        message_id: query.message?.message_id,
+        parse_mode: "Markdown",
+      });
+      return;
+    }
+
+    // Accept translation
+    if (query.data === "tr_accept") {
+      setState(chatId, { ...state, pendingText: undefined, attempt: undefined });
+      await bot.answerCallbackQuery(query.id);
+      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message?.message_id });
       await bot.sendMessage(chatId, strings.translationAccepted);
       return;
     }
 
-    // ── Retry translation ────────────────────────────────────────────────
+    // Retry translation
     if (query.data === "tr_retry") {
       const { pendingText, targetLanguage, translationContext } = state;
-      if (!pendingText || !targetLanguage || !translationContext) {
-        await bot.answerCallbackQuery(query.id);
-        return;
-      }
-      const attempt = (state.translationAttempt ?? 1) + 1;
-      setState(chatId, { ...state, translationAttempt: attempt });
+      if (!pendingText || !targetLanguage || !translationContext) { await bot.answerCallbackQuery(query.id); return; }
+      const attempt = (state.attempt ?? 1) + 1;
+      setState(chatId, { ...state, attempt });
       await bot.answerCallbackQuery(query.id);
-      await bot.editMessageReplyMarkup(
-        { inline_keyboard: [] },
-        { chat_id: chatId, message_id: query.message?.message_id }
-      );
+      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message?.message_id });
       await bot.sendChatAction(chatId, "typing");
       await bot.sendMessage(chatId, strings.retrying);
       try {
-        const translated = await translateText(
-          pendingText,
-          targetLanguage,
-          translationContext,
-          attempt
-        );
-        const langLabel =
-          LANGUAGE_OPTIONS.find((l) => l.code === targetLanguage)?.label ??
-          targetLanguage;
-        await bot.sendMessage(
-          chatId,
-          strings.translated(langLabel, translated),
-          { reply_markup: buildAcceptRetryKeyboard(state.uiLang) }
-        );
+        const translated = await translateText(pendingText, targetLanguage, translationContext, attempt);
+        const langLabel = LANGUAGE_OPTIONS.find((l) => l.code === targetLanguage)?.label ?? targetLanguage;
+        await bot.sendMessage(chatId, strings.translated(langLabel, translated), {
+          reply_markup: buildAcceptRetryKeyboard(state.uiLang, "tr_accept", "tr_retry"),
+        });
       } catch (err) {
         logger.error({ err }, "Error retranslating");
         await bot.sendMessage(chatId, strings.error);
@@ -286,8 +289,41 @@ export function startBot(token: string): void {
       return;
     }
 
+    // Accept summary
+    if (query.data === "sum_accept") {
+      setState(chatId, { ...state, pendingText: undefined, attempt: undefined });
+      await bot.answerCallbackQuery(query.id);
+      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message?.message_id });
+      await bot.sendMessage(chatId, strings.summarizeAccepted);
+      return;
+    }
+
+    // Retry summary
+    if (query.data === "sum_retry") {
+      const { pendingText, summarizeStyle } = state;
+      if (!pendingText || !summarizeStyle) { await bot.answerCallbackQuery(query.id); return; }
+      const attempt = (state.attempt ?? 1) + 1;
+      setState(chatId, { ...state, attempt });
+      await bot.answerCallbackQuery(query.id);
+      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message?.message_id });
+      await bot.sendChatAction(chatId, "typing");
+      await bot.sendMessage(chatId, strings.summarizeRetrying);
+      try {
+        const summary = await summarizeText(pendingText, summarizeStyle as "formal" | "casual", attempt);
+        await bot.sendMessage(chatId, strings.summarized(summary), {
+          reply_markup: buildAcceptRetryKeyboard(state.uiLang, "sum_accept", "sum_retry"),
+        });
+      } catch (err) {
+        logger.error({ err }, "Error re-summarizing");
+        await bot.sendMessage(chatId, strings.error);
+      }
+      return;
+    }
+
     await bot.answerCallbackQuery(query.id);
   });
+
+  // ── Incoming messages ─────────────────────────────────────────────────────────
 
   bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
@@ -304,50 +340,46 @@ export function startBot(token: string): void {
     }
 
     try {
+      // Numbering
       if (state.mode === "numbering") {
-        const result = numberList(text);
-        await bot.sendMessage(chatId, result);
+        await bot.sendMessage(chatId, numberList(text));
+
+      // Grammar
       } else if (state.mode === "grammar") {
         await bot.sendChatAction(chatId, "typing");
         const corrected = await checkGrammar(text);
-        if (corrected === text) {
-          await bot.sendMessage(chatId, strings.noErrors);
-        } else {
-          await bot.sendMessage(chatId, strings.corrected(corrected));
-        }
+        await bot.sendMessage(chatId, corrected === text ? strings.noErrors : strings.corrected(corrected));
+
+      // Translate
       } else if (state.mode === "translate") {
         if (!state.targetLanguage) {
-          await bot.sendMessage(chatId, strings.pickTargetLanguage, {
-            reply_markup: buildTranslateLangKeyboard(),
-          });
+          await bot.sendMessage(chatId, strings.pickTargetLanguage, { reply_markup: buildTranslateLangKeyboard() });
           return;
         }
         if (!state.translationContext) {
-          await bot.sendMessage(chatId, strings.askContext, {
-            reply_markup: buildContextKeyboard(state.uiLang),
-          });
+          await bot.sendMessage(chatId, strings.askContext, { reply_markup: buildTranslateContextKeyboard(state.uiLang) });
           return;
         }
         await bot.sendChatAction(chatId, "typing");
-        const translated = await translateText(
-          text,
-          state.targetLanguage,
-          state.translationContext,
-          1
-        );
-        setState(chatId, {
-          ...state,
-          pendingText: text,
-          translationAttempt: 1,
+        const translated = await translateText(text, state.targetLanguage, state.translationContext, 1);
+        setState(chatId, { ...state, pendingText: text, attempt: 1 });
+        const langLabel = LANGUAGE_OPTIONS.find((l) => l.code === state.targetLanguage)?.label ?? state.targetLanguage;
+        await bot.sendMessage(chatId, strings.translated(langLabel, translated), {
+          reply_markup: buildAcceptRetryKeyboard(state.uiLang, "tr_accept", "tr_retry"),
         });
-        const langLabel =
-          LANGUAGE_OPTIONS.find((l) => l.code === state.targetLanguage)
-            ?.label ?? state.targetLanguage;
-        await bot.sendMessage(
-          chatId,
-          strings.translated(langLabel, translated),
-          { reply_markup: buildAcceptRetryKeyboard(state.uiLang) }
-        );
+
+      // Summarize
+      } else if (state.mode === "summarize") {
+        if (!state.summarizeStyle) {
+          await bot.sendMessage(chatId, strings.askSummarizeStyle, { reply_markup: buildSummarizeStyleKeyboard(state.uiLang) });
+          return;
+        }
+        await bot.sendChatAction(chatId, "typing");
+        const summary = await summarizeText(text, state.summarizeStyle as "formal" | "casual", 1);
+        setState(chatId, { ...state, pendingText: text, attempt: 1 });
+        await bot.sendMessage(chatId, strings.summarized(summary), {
+          reply_markup: buildAcceptRetryKeyboard(state.uiLang, "sum_accept", "sum_retry"),
+        });
       }
     } catch (err) {
       logger.error({ err }, "Error handling message");

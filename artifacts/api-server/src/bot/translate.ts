@@ -9,17 +9,21 @@ export async function translateText(
   attempt: number = 1
 ): Promise<string> {
   const contextGuidance: Record<string, string> = {
-    formal: "The text is formal — use polished, professional language appropriate for official documents, letters, or announcements.",
-    casual: "The text is casual and conversational — use natural, relaxed language as if speaking to a friend. Use contractions and colloquialisms where appropriate.",
-    medical: "The text is medical — preserve all clinical terminology accurately. Use the standard medical vocabulary of the target language.",
-    business: "The text is business-oriented — use clear, professional business language appropriate for emails, reports, or presentations.",
+    formal:
+      "The text is formal — use polished, professional language suited for official documents, letters, or public announcements. Sentences should be structured and authoritative.",
+    casual:
+      "The text is casual and conversational — write as a native speaker would talk to a friend. Use contractions, colloquialisms, and relaxed phrasing. Prioritize naturalness over formality.",
+    medical:
+      "The text is medical — preserve all clinical terminology exactly. Use the standard medical vocabulary recognized in the target language. Precision is essential; never paraphrase clinical terms.",
+    business:
+      "The text is business-oriented — use concise, professional business language appropriate for emails, reports, presentations, or negotiations. Be direct and clear.",
   };
 
   const ctxNote = contextGuidance[context] ?? `The context is: ${context}.`;
 
   const retryNote =
     attempt > 1
-      ? `This is attempt #${attempt}. The user was not satisfied with the previous translation — produce a noticeably different, alternative rendition using varied vocabulary and sentence structure while remaining faithful to the meaning.`
+      ? `This is attempt #${attempt}. The previous translation did not satisfy the user — produce a clearly different version. Use alternative vocabulary, restructure sentences where possible, and vary your phrasing while remaining faithful to the original meaning.`
       : "";
 
   const response = await openai.chat.completions.create({
@@ -28,21 +32,23 @@ export async function translateText(
     messages: [
       {
         role: "system",
-        content: `You are an expert literary and professional translator.
+        content: `You are a world-class professional translator with native-level mastery of ${targetLanguage}.
 
 Translate the following text into ${targetLanguage}.
 
 ${ctxNote}
 ${retryNote}
 
-Translation principles — follow these strictly:
-- Translate naturally and fluently, as a native speaker of ${targetLanguage} would write it.
-- Preserve the tone, voice, and style of the original (formal stays formal, playful stays playful, etc.).
-- Avoid word-for-word translation. Restructure sentences if needed for natural flow.
-- Use idiomatic expressions, collocations, and phrasings native to ${targetLanguage}.
-- Preserve the original formatting (line breaks, paragraphs, lists, punctuation style).
-- Keep proper nouns and brand names as-is unless they have a universally recognized translation.
-- Return ONLY the translated text. No explanations, no labels, no "Translation:" prefix.`,
+Translation rules — follow every one of these without exception:
+- Translate for MEANING, not words. Restructure sentences so they sound completely natural in ${targetLanguage}.
+- NEVER produce word-for-word translations. If a phrase sounds unnatural in ${targetLanguage}, rephrase it using an equivalent native expression.
+- Use idiomatic expressions, natural collocations, and phrasings that a native speaker of ${targetLanguage} would naturally use.
+- Preserve the tone, rhythm, and personality of the original: formal stays formal, playful stays playful, urgent stays urgent.
+- Maintain proper grammar, punctuation, and typography conventions of ${targetLanguage}.
+- Preserve original formatting: line breaks, paragraphs, bullet points, capitalization patterns.
+- Keep proper nouns and brand names unchanged unless a well-known official translation exists.
+- If the source text is ambiguous, choose the most natural and contextually appropriate interpretation.
+- Return ONLY the translated text. No labels, no "Translation:" prefix, no explanations whatsoever.`,
       },
       {
         role: "user",
