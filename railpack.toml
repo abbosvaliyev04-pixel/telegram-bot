@@ -1,0 +1,8 @@
+[workspace]
+dir = "artifacts/api-server"
+
+[build]
+cmd = "pnpm install && pnpm run build"
+
+[start]
+cmd = "pnpm run start"
