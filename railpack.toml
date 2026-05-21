@@ -1,6 +1,9 @@
 [workspace]
 dir = "artifacts/api-server"
 
+[packageManager]
+name = "pnpm"
+
 [build]
 cmd = "pnpm install && pnpm run build"
 
